@@ -5,14 +5,24 @@ import logging
 import time
 
 # Import files
-from utils.helper_functions import student, gt, rubric, format_prompt_input, review_table, save_config_func, apply_config_func
-from prompts import (
-    GRADE_JSON_INSTRUCTIONS, 
-    GRADING_SYSTEM_PROMPT, 
-    GRADING_USER_PROMPT_TEMPLATE,
-    FEEDBACK_SYSTEM_PROMPT,
-    FEEDBACK_USER_PROMPT_TEMPLATE
+from utils.helper_functions import (
+    student, 
+    gt, 
+    rubric, 
+    format_prompt_input, 
+    review_table, 
+    apply_config_func 
     )
+
+try:
+    from utils.helper_functions import save_config_func
+except ImportError as e:
+    import streamlit as st
+    import pandas as pd
+    def save_config_func():
+        st.session_state.save_config = True
+        st.session_state.apply_config = False
+
 from model_manager.deepseek_model import DeepseekModel
 from model_manager.gemini_model import GeminiModel
 
