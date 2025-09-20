@@ -18,7 +18,7 @@ def load_json(path):
         return json.load(f) 
     
 
-student_path = "sample/students/student_b.json"
+student_path = "sample/students/student_a.json"
 gt_path = "sample/gt.json"
 rubric_path = "sample/rubric.json"
 
@@ -48,6 +48,7 @@ def format_prompt_input(gt, student, rubric):
             "ground_truth": q_ground_truth, 
             "rubric_criteria": rubric_criteria, 
             "max_marks": max_marks})
+    print(f"Prompt: {prompt}")
     return prompt
 
 def format_table_input(gt, student):
@@ -71,6 +72,7 @@ def format_table_input(gt, student):
             "ground_truth": q_ground_truth, 
             "rubric_criteria": rubric_criteria, 
             "max_marks": max_marks})
+    
     return prompt
 
 
@@ -78,21 +80,21 @@ def review_table(data):
     """Create a review table from the data."""
     df = pd.DataFrame(data, columns=["q_id", "s_answer", "max_marks"])
     df.rename(columns={"q_id": "Q", "s_answer": "Student Answers", "max_marks": "Max Marks"}, inplace=True)
-    df["Marks Awarded"] = [8, 9]  # Example marks awarded
+    df["Marks Awarded"] = [10, 10]  # Example marks awarded
     df["Feedback"] = [
         "-", 
         "-"
         ]  # Example reasoning
     df["Reasoning"] = [
-        "Good understanding but minor calculation error.", 
-        "Well done, just a small mistake in the final step."
+        "Good understanding.", 
+        "Well done, good understanding of the concept."
         ]  # Example reasoning
     df["Score"] = df["Marks Awarded"].astype(str) + " / " + df["Max Marks"].astype(str)
     new_row = {
         "Q": "Total", 
         "Student Answers": "-", 
         "Score": df["Marks Awarded"].sum().astype(str) + " / " + df["Max Marks"].sum().astype(str), 
-        "Feedback": "Great effort on this assignment! You demonstrated a solid understanding of the key concepts. To improve further, focus on double-checking your calculations and ensuring all parts of the question are fully addressed. Keep up the good work!",
+        "Feedback": "Great effort on this assignment! You demonstrated a solid understanding of the key concepts. Keep up the good work!",
         "Reasoning": "-"}
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df = df[["Q", "Student Answers", "Score", "Feedback", "Reasoning"]]
