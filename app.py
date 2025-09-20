@@ -199,7 +199,7 @@ with tab1:
                 "Confidence Threshold (%)", 
                 min_value=0, 
                 max_value=100, 
-                value=80,
+                value=90,
                 step=1,
                 label_visibility="collapsed"
                 )
@@ -214,9 +214,9 @@ with tab1:
                 label_visibility="hidden"
                 )
             if auto_publish == True:
-                auto_text = "Auto-publish is **enabled**. The AI system will automatically publish results when the confidence threshold is met."
+                auto_text = "Auto-publish is **enabled**. Results that meet the confidence threshold will be automatically reviewed and published by the AI system."
             else:
-                auto_text = "Auto-publish is **disabled**. You will need to manually publish results."
+                auto_text = "Auto-publish is **disabled**. You will need to manually review all results."
             st.info(auto_text)               
             st.markdown("</div>", unsafe_allow_html=True)
 
