@@ -1,0 +1,9 @@
+.DS_Store
+.gitattributes
+python3.12/
+*.pyc
+.env
+.venv/bin/activate
+*.csh
+/.venv/bin
+/.venv
