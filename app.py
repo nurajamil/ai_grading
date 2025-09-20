@@ -6,12 +6,12 @@ import json
 
 # Import files
 from utils.helper_functions import (
-    load_defaults, 
     built_prompt_rows,  
     apply_config_func,
     create_feedback_prompt,
     create_grading_prompt,
-    process_model_response
+    process_model_response,
+    load_json
     )
 
 try:
@@ -23,6 +23,13 @@ except ImportError as e:
         st.session_state.save_config = True
         st.session_state.apply_config = False
         st.session_state.df = None
+
+try:
+    from utils.helper_functions import load_defaults
+except ImportError as e:
+    gt = load_json("sample/gt.json")
+    student = load_json("sample/students/student_a.json")
+    rubric = load_json("sample/rubric.json")
 
 from model_manager.custom_model import CustomModel
 from model_manager.model_fallback import ModelFallback
