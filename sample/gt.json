@@ -1,0 +1,21 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "text": "A small retail shop recorded daily sales (in hundreds of dollars) for 8 days: 15, 12, 10, 18, 20, 14, 16, 15. Find the mean (average) and the median.",
+      
+      "ground_truth": {
+        "method": "Sum = 120, n = 8, mean = 120/8 = 15. Ordered data: 10,12,14,15,15,16,18,20; median = average of the two middle values = 15.",
+        "answer": { "mean": 15, "median": 15 }
+      }
+    },
+    {
+      "id": "2",
+      "text": "Bulb defect probability = 0.05. A box has 3 bulbs, chosen independently. Find the probability that all 3 bulbs are good.",
+      "ground_truth": {
+        "method": "Good bulb = 0.95. All 3 good: 0.95^3 = 0.857375 ≈ 0.857.",
+        "answer": 0.857
+        }
+    }
+  ]
+}

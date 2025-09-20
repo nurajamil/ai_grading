@@ -1,0 +1,15 @@
+{
+  "total_marks": 20,
+  "parts": [
+    {
+      "qid": "1",
+      "max_marks": 10,
+      "criteria": "Award full marks if mean=15 and median=15 with clear working. Partial credit for correct method but arithmetic slips."
+    },
+    {
+      "qid": "2",
+      "max_marks": 10,
+      "criteria": "Full marks if uses 0.95^3 with correct result (~0.857). Partial if correct multiplication idea but wrong base or arithmetic."
+    }
+  ]
+}
