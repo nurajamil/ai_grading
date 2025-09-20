@@ -11,7 +11,7 @@ load_dotenv()
 
 
 class DeepseekModel():
-    """Base class for all language models."""
+    """Deepseek model class"""
 
     def __init__(self,prompt):
         self.prompt = prompt

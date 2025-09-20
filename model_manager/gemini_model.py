@@ -10,7 +10,7 @@ import os
 load_dotenv()
 
 class GeminiModel():
-    """Base class for all language models."""
+    """Gemini model class"""
 
     def __init__(self,prompt):
         self.prompt = prompt
