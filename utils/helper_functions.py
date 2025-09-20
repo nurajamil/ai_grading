@@ -10,6 +10,7 @@ from prompts import (
 # Import libraries
 from pathlib import Path
 import pandas as pd
+import streamlit as st
 
 def load_json(path):
     import json
@@ -121,3 +122,15 @@ def create_feedback_prompt(grading_output, feedback_length="concise"):
 
 
 
+def save_config_func():
+    st.session_state.save_config = True
+    st.session_state.apply_config = False
+    st.session_state.df = None
+
+def apply_config_func():
+    st.session_state.apply_config = True
+    st.session_state.save_config = True
+    prompt_inputs = format_table_input(gt, student)
+    st.session_state.df = review_table(prompt_inputs)
+    
+    

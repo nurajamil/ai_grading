@@ -5,7 +5,7 @@ import logging
 import time
 
 # Import files
-from utils.helper_functions import student, gt, rubric, format_prompt_input, review_table
+from utils.helper_functions import student, gt, rubric, format_prompt_input, review_table, save_config_func, apply_config_func
 from prompts import (
     GRADE_JSON_INSTRUCTIONS, 
     GRADING_SYSTEM_PROMPT, 
@@ -30,6 +30,18 @@ if "rubric" not in st.session_state:
     st.session_state.rubric = None
 if "scripts" not in st.session_state:
     st.session_state.scripts = ""
+if "apply_config" not in st.session_state:
+    st.session_state.apply_config = False
+if "df" not in st.session_state:
+    st.session_state.df = pd.DataFrame()
+if "save_config" not in st.session_state:
+    st.session_state.save_config = False
+if "df" not in st.session_state:
+    st.session_state.df = None
+if "rerun" not in st.session_state:
+    st.session_state.rerun = False
+if "final_df" not in st.session_state:
+    st.session_state.final_df = None
 
 tab1, tab2, tab3 = st.tabs([
     r"$\textsf{\Large Step 1: Configure}$", 
@@ -258,12 +270,11 @@ with tab1:
 
         # Step 6: Save configuration
         st.markdown("<div class='field-title'>6. Click To Save Configuration", unsafe_allow_html=True)
-        save = st.button("Save Configuration")
+        st.session_state.save_config = st.button("Save Configuration",on_click=save_config_func)
         st.markdown("")
-        if save:
+        if st.session_state.save_config:
             st.success("Configuration saved successfully!")
-
-    
+        
     st.markdown("</div>", unsafe_allow_html=True)
     st.write("---")
     st.write("Updated on:", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -272,12 +283,23 @@ with tab1:
 with tab2:
     st.subheader("Review AI Output")
     st.markdown("")
-    st.info("Double click on the cells to edit. Press Enter to save changes.")
-    st.markdown("")
-    if 'df' not in st.session_state:
+
+    if not st.session_state.save_config:
+        st.info("Please complete Step 1 before proceeding to review the results.")
+        st.markdown("")
+    else:
+        st.button("Apply Configuration", on_click=apply_config_func)
+        st.markdown("")
+        st.info("Click to apply the configuration and review the results.")
+        st.markdown("")
+    if st.session_state.apply_config:
+        st.info("Double click on the cells to edit. Press Enter to save changes.")
+        st.markdown("")
         st.session_state.df = review_table(prompt_inputs)
-    edited_df = st.data_editor(st.session_state.df, key="my_data_editor", hide_index=True)
-    st.warning("Please review the AI output. Make sure the output is accurate before proceeding to publish.")
+        edited_df = st.data_editor(st.session_state.df, key="my_data_editor", hide_index=True)
+        st.warning("Please review the AI output. Make sure the output is accurate before proceeding to publish.")
+        st.session_state.df = edited_df
+
     st.write("---")
     st.write("Updated on:", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -285,11 +307,17 @@ with tab2:
 with tab3:
     st.subheader("Publish Results")
     st.markdown("")
-    st.info("Confirm the results below before publishing.")
-    st.markdown("")
-    st.dataframe(review_table(prompt_inputs), hide_index=True)
-    if st.button("Publish"):
-        st.success("The results have been published successfully!")
+    if not st.session_state.apply_config:
+        st.info("Please complete the previous steps to view and publish the results.")
+        st.markdown("")
+    
+    else:
+        st.info("Confirm the results below before publishing.")
+        st.markdown("")
+        st.dataframe(review_table(prompt_inputs), hide_index=True)
+        if st.button("Publish"):
+            st.success("The results have been published successfully!")
     st.write("---")
+    st.write("Updated on:", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
