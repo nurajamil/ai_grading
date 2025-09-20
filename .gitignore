@@ -7,3 +7,6 @@ python3.12/
 *.csh
 /.venv/bin
 /.venv
+.streamlit/
+.gitattributes
+.gitignore
