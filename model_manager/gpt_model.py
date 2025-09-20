@@ -10,13 +10,12 @@ import os
 load_dotenv()
 
 
-class DeepseekModel():
-    """Deepseek model class"""
+class GPTModel():
+    """GPT model class - GPT5 mini"""
 
     def __init__(self):
-        self.base_url = os.getenv("BASE_API_URL")
-        self.api_key = os.getenv("DEEPSEEK_API_KEY")
-        self.model = "deepseek/deepseek-r1:free"
+        self.api_key = os.getenv("OPENAI_GPT5_API_KEY")
+        self.model = "gpt-5-mini"
         
 
     def format_input (self, system_prompt, user_prompt):
@@ -38,20 +37,16 @@ class DeepseekModel():
     
     def create_client(self):
         client = OpenAI(
-            base_url=self.base_url,
             api_key=self.api_key
         ) 
         return client
     
     def model_response(self, **kwargs):
         """Call the model and return the response object."""
-        completion = kwargs['client'].chat.completions.create(
-            extra_body={},
+        completion = kwargs['client'].responses.create(
             model=self.model,
-            messages=kwargs['formatted_input'],
-            max_tokens=kwargs.get('max_tokens', 256),
-            temperature=kwargs.get('temperature', 0.7),
-            top_p=kwargs.get('top_p', 1.0),
+            input=kwargs['formatted_input'],
+            store=True
         )
 
         return completion
@@ -59,7 +54,7 @@ class DeepseekModel():
  
     def parse_response(self, response) -> str:
         """Parse the model's response and return the generated text."""
-        return response.choices[0].message.content
+        return response.output_text
     
     def model_pipeline(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
         """Full pipeline to generate parsed model output from a prompt."""
@@ -83,6 +78,7 @@ class DeepseekModel():
         
         # Step 5: Parse and return the model's output
         parsed_output = self.parse_response(response)
+        print(f"Parse output: {parsed_output}")
 
         #try:
         #    parsed_output = json.loads(parsed_output)
@@ -90,7 +86,6 @@ class DeepseekModel():
         #    print(f"JSON decoding error: {e}")
         #    parsed_output = {"marks_awarded": 0, "max_marks": 0, "reasoning": "Failed to parse JSON response."}
         #print(f"Parsed output: {parsed_output}")
-        
         
         return parsed_output
     

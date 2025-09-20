@@ -28,10 +28,10 @@ Now grade the student's answer strictly per rubric and ground-truth.
 """
 
 FEEDBACK_SYSTEM_PROMPT = """
-You are a helpful teaching assistant. Using the graded results, write overall feedback that helps a Year-1 student improve.
+You are a helpful teaching assistant. Using the grading results of the assignment, write overall feedback that is personalised to the student and helps them to improve.
 """
 FEEDBACK_USER_PROMPT_TEMPLATE = """
-Grading ouput: {grading_output}
+Grading results: {grading_output}
 
-Keep the feedback {feedback_length} and specific to this assignment.
+Keep the feedback length {feedback_length}.
 """

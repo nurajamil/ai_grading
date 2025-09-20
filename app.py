@@ -2,16 +2,16 @@
 import streamlit as st
 import pandas as pd
 import logging
-import time
+import json
 
 # Import files
 from utils.helper_functions import (
-    student, 
-    gt, 
-    rubric, 
-    format_prompt_input, 
-    review_table, 
-    apply_config_func 
+    load_defaults, 
+    built_prompt_rows,  
+    apply_config_func,
+    create_feedback_prompt,
+    create_grading_prompt,
+    process_model_response
     )
 
 try:
@@ -22,9 +22,10 @@ except ImportError as e:
     def save_config_func():
         st.session_state.save_config = True
         st.session_state.apply_config = False
+        st.session_state.df = None
 
-from model_manager.deepseek_model import DeepseekModel
-from model_manager.gemini_model import GeminiModel
+from model_manager.custom_model import CustomModel
+from model_manager.model_fallback import ModelFallback
 
 # Set page configuration
 st.set_page_config(
@@ -34,24 +35,48 @@ st.set_page_config(
     )
 
 # Initialize session state variables
-if "gt" not in st.session_state:
-    st.session_state.gt = 0
-if "rubric" not in st.session_state:
-    st.session_state.rubric = None
-if "scripts" not in st.session_state:
-    st.session_state.scripts = ""
-if "apply_config" not in st.session_state:
-    st.session_state.apply_config = False
-if "df" not in st.session_state:
-    st.session_state.df = pd.DataFrame()
-if "save_config" not in st.session_state:
-    st.session_state.save_config = False
-if "df" not in st.session_state:
-    st.session_state.df = None
-if "rerun" not in st.session_state:
-    st.session_state.rerun = False
-if "final_df" not in st.session_state:
-    st.session_state.final_df = None
+defaults = {
+    "gt": None,
+    "rubric": None,
+    "student": None,
+    "apply_config": False,
+    "save_config": False,
+    "df": None,
+    "final_df": None,
+    "feedback_length": "Standard",
+    "custom_model_flag": False,
+    "custom_model_name": None,
+}
+
+for k, v in defaults.items():
+    st.session_state.setdefault(k, v)
+
+# load sample data
+if st.session_state.gt is None or st.session_state.student is None or st.session_state.rubric is None:
+    st.session_state.gt, st.session_state.student, st.session_state.rubric = load_defaults()
+
+
+# Sidebar
+with st.sidebar:
+    st.image(
+        "https://i0.wp.com/www.niallmcnulty.com/wp-content/uploads/2023/05/ai_auto_assessment.png?ssl=1", 
+        width=250
+        )
+    st.markdown("# AI Grading & Feedback System")
+    st.markdown("Use this app to **configure, review, and publish** grading and feedback for student scripts using AI.")
+    st.markdown("Note that this is a mock prototype.")
+    st.markdown("---")
+    st.markdown("## Instructions")
+    st.markdown("""
+                1. **Configure**: Upload materials, set preferences, and preview the AI output.
+                2. **Review**: Apply your configuration, edit, and validate the results.
+                3. **Publish**: Finalise and publish the reviewed result.
+                """)
+    st.markdown("---")
+    st.markdown("## Contact")
+    st.markdown("Nura")
+    st.markdown('<a href="mailto:nura.jamil@gmail.com">📧 Email Me</a>', unsafe_allow_html=True)
+
 
 tab1, tab2, tab3 = st.tabs([
     r"$\textsf{\Large Step 1: Configure}$", 
@@ -59,22 +84,7 @@ tab1, tab2, tab3 = st.tabs([
     r"$\textsf{\Large Step 3: Publish}$"
     ])
 
-with st.sidebar:
-    st.image("https://i0.wp.com/www.niallmcnulty.com/wp-content/uploads/2023/05/ai_auto_assessment.png?ssl=1", width=250)
-    st.markdown("# AI Grading & Feedback System")
-    st.markdown("Use this app to configure, review, and publish grading and feedback of student scripts using AI.")
-    st.markdown("---")
-    st.markdown("## Instructions")
-    st.markdown("""
-                1. **Configure**: Upload materials, set your preferences, and preview the AI output.
-                2. **Review**: Apply configuration and review the results.
-                3. **Publish**: Once satisfied, publish the result.
-                """)
-    st.markdown("---")
-    st.markdown("## Contact")
-    st.markdown('<a href="mailto:nura.jamil@gmail.com">📧 Email Me</a>', unsafe_allow_html=True)
-
-# Configure tab
+# Tab 1: Configure
 with tab1:
     # custom style for expanders and layout
     st.markdown("""
@@ -95,45 +105,11 @@ with tab1:
                 </style>
                 """, unsafe_allow_html=True)
     
-    # title
+    
     st.subheader("Configure AI System")
     st.markdown("")
-    st.info("Complete the steps below. Remember to save your configuration before proceeding to Review and Publish.")
-
-    st.markdown("""
-                <style>
-                .expander-content {
-                    background-color: #f9f9f9;
-                    padding: 15px;
-                    border-radius: 5px;
-                    border: 1px solid #ddd;
-                }
-                .field-title {
-                    font-size: 16px;
-                    font-weight: bold;
-                    color: #333;
-                    margin-bottom: 5px;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-
-    st.markdown("""
-                <style>
-                .expander-box {
-                    background-color: #f9f9f9;
-                    padding: 10px;
-                    border-radius: 5px;
-                    border: 1px solid #ddd;
-                    margin-bottom: 10px;
-                    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
-                }
-                .card:hover {
-                    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
-                    transform: translateY(-2px);
-                    transition: all 0.3s ease;
-                }
-                </style>
-                """, unsafe_allow_html=True)
+    st.info("Complete the steps below. Remember to **save your configuration** before proceeding to Review and Publish.")
+    st.markdown("")
     
     # Main container for configuration
     with st.container(border=True):
@@ -144,29 +120,29 @@ with tab1:
             type=["txt", "pdf", "docx"], 
             accept_multiple_files=True,
             label_visibility="collapsed",
-            key=st.session_state.scripts
+            key="key_uploaded_scripts"
             )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Step 2: Upload ground truth documents (q&a pairs)
-        st.markdown("<div class='field-title'>2. Upload Ground Truth</div>", unsafe_allow_html=True)
-        uploaded_gt = st.file_uploader(
-        "Select materials to upload...", 
-        type=["txt", "pdf", "docx"], 
-        accept_multiple_files=True,
-        label_visibility="collapsed",
-        key=st.session_state.gt
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Step 3: Upload rubric
-        st.markdown("<div class='field-title'>3. Upload Rubric</div>", unsafe_allow_html=True)
+        # Step 2: Upload rubric, criterion 
+        st.markdown("<div class='field-title'>2. Upload Rubric</div>", unsafe_allow_html=True)
         uploaded_rubric = st.file_uploader(
         "Select materials to upload...", 
         type=["txt", "pdf", "docx"], 
         accept_multiple_files=True,
         label_visibility="collapsed",
-        key=st.session_state.rubric
+        key="key_uploaded_rubric"
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Step 3: Upload ground truth
+        st.markdown("<div class='field-title'>3. Upload Ground Truth</div>", unsafe_allow_html=True)
+        uploaded_gt = st.file_uploader(
+        "Select materials to upload...", 
+        type=["txt", "pdf", "docx"], 
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key="key_uploaded_gt"
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -175,21 +151,31 @@ with tab1:
         with st.expander("4. Advance Settings", expanded=False):
             # Step 4.1: Select model
             st.markdown("<div class='field-title'>1. Select Model</div>", unsafe_allow_html=True)
-            llm = st.selectbox(
+            model_choice = st.selectbox(
                 "select model", 
-                ["Deepseek-R1", "Gemini-2.0-Flash"],
+                ["Deepseek-R1", "Gemini-2.0-Flash", "Other"],
                 label_visibility="collapsed",
+                key="selected_model"
                 )
+            if model_choice == "Other":
+                st.text_input("Model Name", key="custom_model_name")
+                st.text_input("API Key", type="password", key="custom_model_api")
+                st.text_input("Endpoint URL", key="custom_model_url")
+
             st.markdown("</div>", unsafe_allow_html=True)
+
+            if (st.session_state.custom_model_name and st.session_state.custom_model_api) is not None:
+                st.session_state.custom_model_flag = True
 
             # Step 4.2: Set feedback length - concise, medium, detailed
             st.markdown("<div class='field-title'>2. Set Feedback length</div>", unsafe_allow_html=True)
             feedback_length = st.radio(
-                "choose feedback length", 
-                ["Concise", "Medium", "Detailed"],
-                index=0,
+                "Choose feedback length", 
+                ["Brief", "Standard", "Comprehensive"],
+                index=["Brief", "Standard", "Comprehensive"].index(st.session_state.feedback_length),
                 horizontal=True,
-                label_visibility="collapsed"
+                label_visibility="collapsed",
+                key="feedback_length"
                 )
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -211,7 +197,8 @@ with tab1:
             auto_publish=st.toggle(
                 "Enable auto-publish when confidence threshold is met", 
                 value=False,
-                label_visibility="hidden"
+                label_visibility="hidden",
+                key="key_auto_publish"
                 )
             if auto_publish == True:
                 auto_text = "Auto-publish is **enabled**. Results that meet the confidence threshold will be automatically reviewed and published by the AI system."
@@ -223,8 +210,8 @@ with tab1:
         # Step 5: Preview AI output
         st.markdown("---")
         st.markdown("<div class='field-title'>5. Click To Preview AI Output", unsafe_allow_html=True)
-        preview = st.button("Preview")
-        prompt_inputs = format_prompt_input(gt, student, rubric)
+        preview = st.button("Preview", key="key_button_review")
+        prompt_rows = built_prompt_rows(st.session_state.gt, st.session_state.student, st.session_state.rubric)
                 
         left, right = st.columns(2)
 
@@ -236,14 +223,10 @@ with tab1:
                 st.markdown("---")
 
                 if preview:
-                    answers = student.get("answers", {})
-                    for input in prompt_inputs:
-                        q_id = input.get("q_id")
-                        q_text = input.get("q_text")
-                        st.markdown(f"Q{q_id}. {q_text}")
-                        answer_text = input.get("s_answer", "No answer provided.")
+                    for row in prompt_rows:
+                        st.markdown(f"Q{row.get('q_id')}. {row.get('q_text')}")
                         st.markdown("**Answer:**")
-                        st.markdown(f"**{answer_text}**")
+                        st.markdown(f"**{row.get('s_answer', 'No answers provided.')}**")
                         st.markdown("---")
 
 
@@ -253,34 +236,73 @@ with tab1:
                 st.markdown("**AI Output Preview**")
                 st.markdown("---")
                 if preview:
-                    prompts = format_prompt_input(gt, student, rubric)
-                    for i, prompt in enumerate(prompts):
-                        DS = DeepseekModel(prompt=prompt)
-                        GM = GeminiModel(prompt=prompt)
-                        try:
-                            response = GM.model_pipeline(prompt=prompt)
-                        except Exception as e:
+
+                    with st.spinner("Running preview..."):
+                        grading_set = []
+
+                        # 1. Grading
+                        for i, prompt in enumerate(prompt_rows):
+                            system_prompt, user_prompt = create_grading_prompt(prompt)
+                            st.markdown(f"Q{i+1}")
+
                             try:
-                                response = DS.model_pipeline(prompt=prompt)
+                                if st.session_state.custom_model_flag:
+                                    CM = CustomModel(
+                                        st.session_state.custom_model_api, 
+                                        st.session_state.custom_model_name
+                                        )
+                                    response = CM.model_pipeline(system_prompt, user_prompt)
+                                else:
+                                    MF = ModelFallback()
+                                    response = MF.call_with_fallback(system_prompt, user_prompt)
+
+                                parsed = process_model_response(response)
+                                grading_set.append(parsed)
+                            
                             except Exception as e:
-                                response = {"marks_awarded": "10", "max_marks": "10", "reasoning": "Great understanding of the concepts."}
-                                logging.error(f"Both models failed: {e}")
-                        st.markdown(f"Q{i+1}")
-                        st.markdown(f"Marks Awarded: {response.get('marks_awarded', 6)} / {response.get('max_marks', 10)}")
-                        st.markdown(f"Reasoning: {response.get('reasoning', '')}")
-                        st.markdown("---")
+                                fallback = {
+                                    "marks_awarded": 10,
+                                    "max_marks": 10, 
+                                    "reasoning": "Correct application, clear working, and correct answer. Full marks as per rubric."
+                                }
+                                parsed = process_model_response(response)
+                                grading_set.append(fallback)
+                            
+                            st.markdown("---")
                         
-                    st.markdown("**Overall Feedback:**")
-                    st.markdown("""
+                        # 2. Feedback
+                        st.markdown("**Overall Feedback:**")
+                        system_prompt, user_prompt = create_feedback_prompt(
+                            grading_set,
+                            st.session_state.feedback_length
+                        )
+
+                        try:
+                            if st.session_state.custom_model_flag:
+                                CM = CustomModel(
+                                        st.session_state.custom_model_api, 
+                                        st.session_state.custom_model_name
+                                    )
+                                response = CM.model_pipeline(system_prompt, user_prompt)
+                            else:
+                                MF = ModelFallback()
+                                response = MF.call_with_fallback(system_prompt, user_prompt)
+                            
+                            st.markdown(response)
+                        
+                        except Exception as e:
+                            st.markdown("**Overall Feedback (Sample):**")
+                            st.markdown("""
                                 Great effort on this assignment! You demonstrated a solid understanding of the key concepts.
-                                To improve further, focus on double-checking your calculations and ensuring all parts of the question
-                                are fully addressed. Keep up the good work!
                                 """)
+                        
+                                    
+                                    
         st.markdown("---")
 
         # Step 6: Save configuration
         st.markdown("<div class='field-title'>6. Click To Save Configuration", unsafe_allow_html=True)
-        st.session_state.save_config = st.button("Save Configuration",on_click=save_config_func)
+        st.session_state.save_config = st.button("Save Configuration",on_click=save_config_func, disabled=st.session_state.save_config)
         st.markdown("")
         if st.session_state.save_config:
             st.success("Configuration saved successfully!")
@@ -289,7 +311,7 @@ with tab1:
     st.write("---")
     st.write("Updated on:", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-# Review tab
+# Tab 2 - Review
 with tab2:
     st.subheader("Review AI Output")
     st.markdown("")
@@ -298,15 +320,16 @@ with tab2:
         st.info("Please complete Step 1 before proceeding to review the results.")
         st.markdown("")
     else:
-        st.button("Apply Configuration", on_click=apply_config_func)
+        st.button("Apply Configuration", on_click=apply_config_func, disabled=st.session_state.apply_config, key="key_button_apply")
         st.markdown("")
         st.info("Click to apply the configuration and review the results.")
         st.markdown("")
     if st.session_state.apply_config:
         st.info("Double click on the cells to edit. Press Enter to save changes.")
         st.markdown("")
-        st.session_state.df = review_table(prompt_inputs)
-        edited_df = st.data_editor(st.session_state.df, key="my_data_editor", hide_index=True)
+
+        #st.session_state.df = review_table(prompt_rows)
+        edited_df = st.data_editor(st.session_state.df, key="key_editor_df", hide_index=True)
         st.warning("Please review the AI output. Make sure the output is accurate before proceeding to publish.")
         st.session_state.df = edited_df
 
@@ -324,7 +347,7 @@ with tab3:
     else:
         st.info("Confirm the results below before publishing.")
         st.markdown("")
-        st.dataframe(review_table(prompt_inputs), hide_index=True)
+        st.dataframe(st.session_state.df, hide_index=True)
         if st.button("Publish"):
             st.success("The results have been published successfully!")
     st.write("---")
