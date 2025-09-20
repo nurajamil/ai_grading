@@ -154,7 +154,7 @@ with tab1:
             # Step 4.1: Select model
             st.markdown("<div class='field-title'>1. Select Model</div>", unsafe_allow_html=True)
             llm = st.selectbox(
-                "", 
+                "select model", 
                 ["Deepseek-R1", "Gemini-2.0-Flash"],
                 label_visibility="collapsed",
                 )
@@ -163,7 +163,7 @@ with tab1:
             # Step 4.2: Set feedback length - concise, medium, detailed
             st.markdown("<div class='field-title'>2. Set Feedback length</div>", unsafe_allow_html=True)
             feedback_length = st.radio(
-                "", 
+                "choose feedback length", 
                 ["Concise", "Medium", "Detailed"],
                 index=0,
                 horizontal=True,
