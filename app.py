@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import logging
 import json
+import datetime
 
 # Import files
 from utils.helper_functions import (
@@ -11,8 +12,10 @@ from utils.helper_functions import (
     create_feedback_prompt,
     create_grading_prompt,
     process_model_response,
-    load_json
+    load_json,
     )
+
+from utils.excel_export import ExcelExporter
 
 try:
     from utils.helper_functions import save_config_func
@@ -30,6 +33,7 @@ except ImportError as e:
     gt = load_json("sample/gt.json")
     student = load_json("sample/students/student_a.json")
     rubric = load_json("sample/rubric.json")
+    
 
 from model_manager.custom_model import CustomModel
 from model_manager.model_fallback import ModelFallback
@@ -62,6 +66,7 @@ for k, v in defaults.items():
 if st.session_state.gt is None or st.session_state.student is None or st.session_state.rubric is None:
     st.session_state.gt, st.session_state.student, st.session_state.rubric = load_defaults()
 
+excel = ExcelExporter()
 
 # Sidebar
 with st.sidebar:
@@ -132,7 +137,7 @@ with tab1:
         st.markdown("</div>", unsafe_allow_html=True)
 
         # Step 2: Upload rubric, criterion 
-        st.markdown("<div class='field-title'>2. Upload Rubric</div>", unsafe_allow_html=True)
+        st.markdown("<div class='field-title'>2. Upload Rubric / Marking Guide</div>", unsafe_allow_html=True)
         uploaded_rubric = st.file_uploader(
         "Select materials to upload...", 
         type=["txt", "pdf", "docx"], 
@@ -143,7 +148,7 @@ with tab1:
         st.markdown("</div>", unsafe_allow_html=True)
 
         # Step 3: Upload ground truth
-        st.markdown("<div class='field-title'>3. Upload Ground Truth</div>", unsafe_allow_html=True)
+        st.markdown("<div class='field-title'>3. Upload Ground Truth (Sample Marked Scripts)</div>", unsafe_allow_html=True)
         uploaded_gt = st.file_uploader(
         "Select materials to upload...", 
         type=["txt", "pdf", "docx"], 
@@ -312,7 +317,7 @@ with tab1:
         st.session_state.save_config = st.button("Save Configuration",on_click=save_config_func, disabled=st.session_state.save_config)
         st.markdown("")
         if st.session_state.save_config:
-            st.success("Configuration saved successfully!")
+            st.success("Configuration saved successfully! You may now proceed to Step 2: Review.")
         
     st.markdown("</div>", unsafe_allow_html=True)
     st.write("---")
@@ -327,9 +332,9 @@ with tab2:
         st.info("Please complete Step 1 before proceeding to review the results.")
         st.markdown("")
     else:
-        st.button("Apply Configuration", on_click=apply_config_func, disabled=st.session_state.apply_config, key="key_button_apply")
+        st.button("Generate Results", on_click=apply_config_func, disabled=st.session_state.apply_config, key="key_button_apply")
         st.markdown("")
-        st.info("Click to apply the configuration and review the results.")
+        st.info("Click to generate and review the results.")
         st.markdown("")
     if st.session_state.apply_config:
         st.info("Double click on the cells to edit. Press Enter to save changes.")
@@ -355,8 +360,17 @@ with tab3:
         st.info("Confirm the results below before publishing.")
         st.markdown("")
         st.dataframe(st.session_state.df, hide_index=True)
-        if st.button("Publish"):
-            st.success("The results have been published successfully!")
+        excel_data = excel.create_excel_report(st.session_state.df)
+        #if st.button("Publish"):
+        #    st.success("The results have been published successfully!")
+        if excel_data:
+            st.download_button(
+                "Download Excel Report",
+                data = excel_data,
+                file_name = f"grading_report.xlsx",
+                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
     st.write("---")
     st.write("Updated on:", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"))
 
