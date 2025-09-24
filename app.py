@@ -297,7 +297,7 @@ with tab1:
                                         "max_marks": 10, 
                                         "reasoning": "Correct application, clear working, and correct answer. Full marks as per rubric."
                                     }
-                                    parsed = process_model_response(response)
+                                    parsed = process_model_response(fallback)
                                     grading_set.append(fallback)
                                     st.markdown("---")
                             
