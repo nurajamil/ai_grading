@@ -27,12 +27,11 @@ class ModelFallback():
     
     def call_with_fallback(self, system_prompt, user_prompt, max_retries=1, backoffs=(1.5, 3)):
         """Try gemini first then Deepseek"""
-    
         attempts = [
-            ("gpt", lambda: self.try_gpt(system_prompt, user_prompt))
-            ]            
-#        ("gemini", self.try_gemini), 
-#        ("deepseek", self.try_deepseek)
+                ("gpt", lambda: self.try_gpt(system_prompt, user_prompt))
+                ]            
+    #        ("gemini", self.try_gemini), 
+    #        ("deepseek", self.try_deepseek)
 
         for attempt in range(max_retries+1):
             for name, function in attempts:
@@ -43,10 +42,5 @@ class ModelFallback():
             if attempt < max_retries:
                 time.sleep(backoffs[min(attempt, len(backoffs) - 1)])
         
-        fallback = {
-                    "marks_awarded": 10,
-                    "max_marks": 10, 
-                    "reasoning": "Correct application, clear working, and correct answer. Full marks as per rubric."
-                    }
-        
-        return fallback 
+
+     
