@@ -289,6 +289,7 @@ with tab1:
 
                                     parsed = process_model_response(response)
                                     grading_set.append(parsed)
+                                    st.markdown("---")
                                 
                                 except Exception as e:
                                     fallback = {
@@ -298,8 +299,9 @@ with tab1:
                                     }
                                     parsed = process_model_response(response)
                                     grading_set.append(fallback)
+                                    st.markdown("---")
                             
-                            st.markdown("---")
+                            
                         
                         # 2. Feedback
                         st.markdown("**Overall Feedback:**")
