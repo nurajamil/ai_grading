@@ -380,14 +380,14 @@ with tab3:
     else:
         st.info("Confirm the results below before publishing.")
         st.markdown("")
-        excel_data = excel.create_excel_report(st.session_state.df)
-        if excel_data:
-            st.download_button(
-                "Download Excel Report",
-                data = excel_data,
-                file_name = f"grading_report.xlsx",
-                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+#        excel_data = excel.create_excel_report(st.session_state.df)
+#        if excel_data:
+#            st.download_button(
+#                "Download Excel Report",
+#                data = excel_data,
+#                file_name = f"grading_report.xlsx",
+#                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+#            )
         st.dataframe(st.session_state.df, hide_index=True)
         if st.button("Publish"):
             st.success("The results have been published successfully!")
