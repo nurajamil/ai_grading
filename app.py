@@ -13,6 +13,8 @@ from utils.helper_functions import (
     create_grading_prompt,
     process_model_response,
     load_json,
+    combine_students,
+    pick_random_student
     )
 
 from utils.excel_export import ExcelExporter
@@ -31,7 +33,8 @@ try:
     from utils.helper_functions import load_defaults
 except ImportError as e:
     gt = load_json("sample/gt.json")
-    student = load_json("sample/students/student_a.json")
+#    student = load_json("sample/students/student_a.json")
+    students = combine_students("sample/students/student_a.json", "sample/students/student_b.json")
     rubric = load_json("sample/rubric.json")
     
 
@@ -49,7 +52,7 @@ st.set_page_config(
 defaults = {
     "gt": None,
     "rubric": None,
-    "student": None,
+    "students": None,
     "apply_config": False,
     "save_config": False,
     "df": None,
@@ -57,14 +60,15 @@ defaults = {
     "feedback_length": "Standard",
     "custom_model_flag": False,
     "custom_model_name": None,
+    "s_id": None
 }
 
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
 
 # load sample data
-if st.session_state.gt is None or st.session_state.student is None or st.session_state.rubric is None:
-    st.session_state.gt, st.session_state.student, st.session_state.rubric = load_defaults()
+if st.session_state.gt is None or st.session_state.students is None or st.session_state.rubric is None:
+    st.session_state.gt, st.session_state.students, st.session_state.rubric = load_defaults()
 
 excel = ExcelExporter()
 
@@ -165,7 +169,7 @@ with tab1:
             st.markdown("<div class='field-title'>1. Select Model</div>", unsafe_allow_html=True)
             model_choice = st.selectbox(
                 "select model", 
-                ["Deepseek-R1", "Gemini-2.0-Flash", "Other"],
+                ["Deepseek-R1", "Gemini-2.0-Flash", "Other (OpenAI)"],
                 label_visibility="collapsed",
                 key="selected_model"
                 )
@@ -223,7 +227,8 @@ with tab1:
         st.markdown("---")
         st.markdown("<div class='field-title'>5. Click To Preview AI Output", unsafe_allow_html=True)
         preview = st.button("Preview", key="key_button_review")
-        prompt_rows = built_prompt_rows(st.session_state.gt, st.session_state.student, st.session_state.rubric)
+        prompt_rows = built_prompt_rows(st.session_state.gt, st.session_state.students, st.session_state.rubric)
+        print(f"Prompt rows generated: {prompt_rows}")
                 
         left, right = st.columns(2)
 
@@ -235,11 +240,14 @@ with tab1:
                 st.markdown("---")
 
                 if preview:
+                    st.session_state.s_id = pick_random_student(st.session_state.students)
                     for row in prompt_rows:
-                        st.markdown(f"Q{row.get('q_id')}. {row.get('q_text')}")
-                        st.markdown("**Answer:**")
-                        st.markdown(f"**{row.get('s_answer', 'No answers provided.')}**")
-                        st.markdown("---")
+                        s_id = row.get("s_id")
+                        if s_id == st.session_state.s_id:
+                            st.markdown(f"Q{row.get('q_id')}. {row.get('q_text')}")
+                            st.markdown("**Answer:**")
+                            st.markdown(f"**{row.get('s_answer', 'No answers provided.')}**")
+                            st.markdown("---")
 
 
         with right:
@@ -254,31 +262,34 @@ with tab1:
 
                         # 1. Grading
                         for i, prompt in enumerate(prompt_rows):
-                            system_prompt, user_prompt = create_grading_prompt(prompt)
-                            st.markdown(f"Q{i+1}")
+                            s_id = prompt.get("s_id")
+                            q_id = prompt.get("q_id")
+                            if s_id == st.session_state.s_id:
+                                system_prompt, user_prompt = create_grading_prompt(prompt)
+                                st.markdown(f"Q{q_id}")
 
-                            try:
-                                if st.session_state.custom_model_flag:
-                                    CM = CustomModel(
-                                        st.session_state.custom_model_api, 
-                                        st.session_state.custom_model_name
-                                        )
-                                    response = CM.model_pipeline(system_prompt, user_prompt)
-                                else:
-                                    MF = ModelFallback()
-                                    response = MF.call_with_fallback(system_prompt, user_prompt)
+                                try:
+                                    if st.session_state.custom_model_flag:
+                                        CM = CustomModel(
+                                            st.session_state.custom_model_api, 
+                                            st.session_state.custom_model_name
+                                            )
+                                        response = CM.model_pipeline(system_prompt, user_prompt)
+                                    else:
+                                        MF = ModelFallback()
+                                        response = MF.call_with_fallback(system_prompt, user_prompt)
 
-                                parsed = process_model_response(response)
-                                grading_set.append(parsed)
-                            
-                            except Exception as e:
-                                fallback = {
-                                    "marks_awarded": 10,
-                                    "max_marks": 10, 
-                                    "reasoning": "Correct application, clear working, and correct answer. Full marks as per rubric."
-                                }
-                                parsed = process_model_response(response)
-                                grading_set.append(fallback)
+                                    parsed = process_model_response(response)
+                                    grading_set.append(parsed)
+                                
+                                except Exception as e:
+                                    fallback = {
+                                        "marks_awarded": 10,
+                                        "max_marks": 10, 
+                                        "reasoning": "Correct application, clear working, and correct answer. Full marks as per rubric."
+                                    }
+                                    parsed = process_model_response(response)
+                                    grading_set.append(fallback)
                             
                             st.markdown("---")
                         
@@ -329,7 +340,7 @@ with tab2:
     st.markdown("")
 
     if not st.session_state.save_config:
-        st.info("Please complete Step 1 before proceeding to review the results.")
+        st.info("Please **save your configuration** before proceeding to review the results.")
         st.markdown("")
     else:
         st.button("Generate Results", on_click=apply_config_func, disabled=st.session_state.apply_config, key="key_button_apply")
@@ -359,10 +370,7 @@ with tab3:
     else:
         st.info("Confirm the results below before publishing.")
         st.markdown("")
-        st.dataframe(st.session_state.df, hide_index=True)
         excel_data = excel.create_excel_report(st.session_state.df)
-        #if st.button("Publish"):
-        #    st.success("The results have been published successfully!")
         if excel_data:
             st.download_button(
                 "Download Excel Report",
@@ -370,6 +378,10 @@ with tab3:
                 file_name = f"grading_report.xlsx",
                 mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+        st.dataframe(st.session_state.df, hide_index=True)
+        if st.button("Publish"):
+            st.success("The results have been published successfully!")
+        
 
     st.write("---")
     st.write("Updated on:", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"))

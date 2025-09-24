@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import json
+import random
 
 def load_json(path):
     import json
@@ -22,35 +23,65 @@ def load_json(path):
 # Default loaders - sample data
 def load_defaults():
     gt = load_json("sample/gt.json")
-    student = load_json("sample/students/student_a.json")
+    students = combine_students("sample/students/student_a.json", "sample/students/student_b.json")
+#    student = load_json("sample/students/student_a.json")
     rubric = load_json("sample/rubric.json")
 
-    return gt, student, rubric
+    return gt, students, rubric
+
+# Combine student transcripts
+def combine_students(*student_files):
+    students = []
+
+    for file in student_files:
+        with open(file, "r") as f:
+            data = json.load(f)
+            students.append(data)
+    
+#    with open(output_file, "w") as f:
+#        json.dump(students, f, indent=2)
+    
+    print(f"Combined {len(student_files)} student files.")
+
+    return students
+
+# random choice for preview
+def pick_random_student(students: list[dict]) -> dict:
+    ids = []
+    for student in students:
+        ids.append(student.get("id"))
+
+    s_id = random.choice(ids)
+
+    return s_id
 
 
 # Prompt builders - per-question rows with student answers, rubric, ground truth, etc
-def built_prompt_rows(gt, student, rubric):
+def built_prompt_rows(gt, students, rubric):
     rows = []
-    answers = student.get("answers", {})
-    for q in gt.get("questions", []):
-        q_id = q.get("id")
-        q_text = q.get("text")
-        q_ground_truth = q.get("ground_truth", "")
-        answer_text = answers.get(q_id, "No answer provided.")
+    for student in students:
+        answers = student.get("answers", {})
+        s_id = student.get("id", "")
+        for q in gt.get("questions", []):
+            q_id = q.get("id")
+            q_text = q.get("text")
+            q_ground_truth = q.get("ground_truth", "")
+            answer_text = answers.get(q_id, "No answer provided.")
 
-        rubric_parts = rubric.get("parts", [])
-        for part in rubric_parts:
-            if part.get("qid") == q_id:
-                criteria = part.get("criteria", "No criteria provided.")
-                max_marks = part.get("max_marks", 0)
+            rubric_parts = rubric.get("parts", [])
+            for part in rubric_parts:
+                if part.get("qid") == q_id:
+                    criteria = part.get("criteria", "No criteria provided.")
+                    max_marks = part.get("max_marks", 0)
 
-        rows.append({
-            "q_id":q_id, 
-            "q_text": q_text, 
-            "s_answer": answer_text,
-            "ground_truth": q_ground_truth, 
-            "rubric_criteria": criteria, 
-            "max_marks": max_marks})
+            rows.append({
+                "s_id": s_id,
+                "q_id":q_id, 
+                "q_text": q_text, 
+                "s_answer": answer_text,
+                "ground_truth": q_ground_truth, 
+                "rubric_criteria": criteria, 
+                "max_marks": max_marks})
     
     return rows
 
@@ -58,25 +89,30 @@ def built_prompt_rows(gt, student, rubric):
 # Table builders - create table - contains dummy data
 def review_table(data):
     """Create a review table from the data."""
-    df = pd.DataFrame(data, columns=["q_id", "s_answer", "max_marks"])
-    df.rename(columns={"q_id": "Q", "s_answer": "Student Answers", "max_marks": "Max Marks"}, inplace=True)
+    df = pd.DataFrame(data, columns=["s_id", "q_id", "s_answer", "max_marks"])
+    df.rename(columns={"s_id": "id", "q_id": "Q", "s_answer": "Student Answers", "max_marks": "Max Marks"}, inplace=True)
 
     # Dummy data
-    df["Marks Awarded"] = [10, 10]  
-    df["Feedback"] = ["-", "-"]  
-    df["Reasoning"] = ["Good understanding.", "Well done, good understanding of the concept."]
+    df["Marks Awarded"] = [10, 10, 3, 0]  
+    df["Feedback"] = ["-", "-", "-", "-"]  
+    df["Reasoning"] = [
+        "Good understanding.", 
+        "Well done, good understanding of the concept.", 
+        "Improve on understanding the concept.", 
+        "Improve on understanding the concept."]
     df["Score"] = df["Marks Awarded"].astype(str) + " / " + df["Max Marks"].astype(str)
 
     # Add overall row
-    new_row = {
-        "Q": "Total", 
-        "Student Answers": "-", 
-        "Score": df["Marks Awarded"].sum().astype(str) + " / " + df["Max Marks"].sum().astype(str), 
-        "Feedback": "Great effort on this assignment! You demonstrated a solid understanding of the key concepts. Keep up the good work!",
-        "Reasoning": "-"
-        }
-    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-    df = df[["Q", "Student Answers", "Score", "Feedback", "Reasoning"]]
+#    new_row = {
+#        "id": 1,
+#        "Q": "Total", 
+#        "Student Answers": "-", 
+#        "Score": df["Marks Awarded"].sum().astype(str) + " / " + df["Max Marks"].sum().astype(str), 
+#        "Feedback": "Great effort on this assignment! You demonstrated a solid understanding of the key concepts. Keep up the good work!",
+#        "Reasoning": "-"
+#        }
+#    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+#    df = df[["Q", "Student Answers", "Score", "Feedback", "Reasoning"]]
    
     return df
 
