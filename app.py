@@ -28,14 +28,6 @@ except ImportError as e:
         st.session_state.save_config = True
         st.session_state.apply_config = False
         st.session_state.df = None
-
-try:
-    from utils.helper_functions import load_defaults
-except ImportError as e:
-    gt = load_json("sample/gt.json")
-#    student = load_json("sample/students/student_a.json")
-    students = combine_students("sample/students/student_a.json", "sample/students/student_b.json")
-    rubric = load_json("sample/rubric.json")
     
 try:
     from utils.helper_functions import combine_students
@@ -45,6 +37,14 @@ except ImportError as e:
         with open(file, "r") as f:
             data = json.load(f)
             students.append(data)
+
+try:
+    from utils.helper_functions import load_defaults
+except ImportError as e:
+    gt = load_json("sample/gt.json")
+#    student = load_json("sample/students/student_a.json")
+    students = combine_students("sample/students/student_a.json", "sample/students/student_b.json")
+    rubric = load_json("sample/rubric.json")
 
 from model_manager.custom_model import CustomModel
 from model_manager.model_fallback import ModelFallback
@@ -298,6 +298,7 @@ with tab1:
                                         "reasoning": "Correct application, clear working, and correct answer. Full marks as per rubric."
                                     }
                                     parsed = process_model_response(fallback)
+                                    print(f"Default parsed response: {parsed}")
                                     grading_set.append(fallback)
                                     st.markdown("---")
                             
