@@ -37,7 +37,15 @@ except ImportError as e:
     students = combine_students("sample/students/student_a.json", "sample/students/student_b.json")
     rubric = load_json("sample/rubric.json")
     
-
+try:
+    from utils.helper_functions import combine_students
+except ImportError as e:
+    students = []
+    for file in ["sample/students/student_a.json", "sample/students/student_b.json"]:
+        with open(file, "r") as f:
+            data = json.load(f)
+            students.append(data)
+            
 from model_manager.custom_model import CustomModel
 from model_manager.model_fallback import ModelFallback
 
