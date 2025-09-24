@@ -45,7 +45,7 @@ except ImportError as e:
         with open(file, "r") as f:
             data = json.load(f)
             students.append(data)
-            
+
 from model_manager.custom_model import CustomModel
 from model_manager.model_fallback import ModelFallback
 
@@ -181,7 +181,7 @@ with tab1:
                 label_visibility="collapsed",
                 key="selected_model"
                 )
-            if model_choice == "Other":
+            if model_choice == "Other (OpenAI)":
                 st.text_input("Model Name", key="custom_model_name")
                 st.text_input("API Key", type="password", key="custom_model_api")
                 st.text_input("Endpoint URL", key="custom_model_url")
